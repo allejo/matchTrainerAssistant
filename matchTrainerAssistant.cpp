@@ -22,8 +22,8 @@
 
 #include <sstream>
 
-#include "../../src/bzfs/bzfs.h"
 #include "bzfsAPI.h"
+#include "bztoolkit/bzToolkitApi.h"
 
 // Define plug-in name
 const std::string PLUGIN_NAME = "Match Trainer Assistant";
@@ -174,13 +174,15 @@ bool MatchTrainerAssistant::SlashCommand(int playerID, bz_ApiString command, bz_
             }
         }
 
-        playerAlive(playerID);
+        bztk_forcePlayerSpawn(playerID);
         handleSpawn[playerID] = true;
 
         return true;
     }
     else if (command == "flag")
     {
+        bz_givePlayerFlag(playerID, bztk_getFlagFromTeam(pr->team).c_str(), false);
+
         return false;
     }
     else if (command == "die")
