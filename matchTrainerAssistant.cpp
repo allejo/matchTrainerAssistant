@@ -26,7 +26,7 @@
 #include "bzfsAPI.h"
 
 // Define plug-in name
-const std::string PLUGIN_NAME = "Master Baiter";
+const std::string PLUGIN_NAME = "Match Trainer Assistant";
 
 // Define plug-in version numbering
 const int MAJOR = 1;
