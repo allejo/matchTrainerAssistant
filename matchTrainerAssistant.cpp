@@ -128,14 +128,15 @@ bool MatchTrainerAssistant::SlashCommand(int playerID, bz_ApiString command, bz_
 {
     std::unique_ptr<bz_BasePlayerRecord> pr(bz_getPlayerByIndex(playerID));
 
+    if (pr->team == eObservers)
+    {
+        bz_sendTextMessage(BZ_SERVER, playerID, "These commands are intended for players only.");
+
+        return true;
+    }
+
     if (command == "spawn")
     {
-        if (pr->team == eObservers)
-        {
-            bz_sendTextMessage(BZ_SERVER, playerID, "Only players may execute this command.");
-            return true;
-        }
-
         if (pr->spawned)
         {
             bz_killPlayer(playerID, BZ_SERVER);
