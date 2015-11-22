@@ -13,7 +13,7 @@ Vladimir "allejo" Jimenez
 - **/spawn**
     - **/spawn** Respawn immediately at the location of your last death
     - **/spawn &lt;id | callsign&gt;** Respawn immediately at the location of the target player's last location
-    - **/spawn <x> <y> <z> <rotation>** Respawn immediately at the specified location; be sure not to get stuck in objects!
+    - **/spawn &lt;x&gt; &lt;y&gt; &lt;z&gt; &lt;rotation&gt;** Respawn immediately at the specified location; be sure not to get stuck in objects!
 - **/flag**
     - The command with no parameters will give you your own team flag
 - **/die**
