@@ -181,7 +181,7 @@ bool MatchTrainerAssistant::SlashCommand(int playerID, bz_ApiString command, bz_
     }
     else if (command == "flag")
     {
-        bz_givePlayerFlag(playerID, bztk_getFlagFromTeam(pr->team).c_str(), false);
+        bz_givePlayerFlag(playerID, bztk_getFlagFromTeam(pr->team), false);
 
         return false;
     }
