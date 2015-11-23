@@ -32,7 +32,7 @@ const std::string PLUGIN_NAME = "Match Trainer Assistant";
 const int MAJOR = 1;
 const int MINOR = 0;
 const int REV = 0;
-const int BUILD = 3;
+const int BUILD = 4;
 
 class MatchTrainerAssistant : public bz_Plugin, public bz_CustomSlashCommandHandler
 {
@@ -210,10 +210,10 @@ bool MatchTrainerAssistant::SlashCommand(int playerID, bz_ApiString command, bz_
             }
             else
             {
-                lastDeaths[playerID][0] = std::atoi(params->get(0).c_str());
-                lastDeaths[playerID][1] = std::atoi(params->get(1).c_str());
-                lastDeaths[playerID][2] = std::atoi(params->get(2).c_str());
-                lastDeaths[playerID][3] = std::atoi(params->get(3).c_str());
+                lastDeaths[playerID][0] = std::atof(params->get(0).c_str());
+                lastDeaths[playerID][1] = std::atof(params->get(1).c_str());
+                lastDeaths[playerID][2] = std::atof(params->get(2).c_str());
+                lastDeaths[playerID][3] = std::atof(params->get(3).c_str());
             }
         }
 
