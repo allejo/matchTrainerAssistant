@@ -32,7 +32,7 @@ const std::string PLUGIN_NAME = "Match Trainer Assistant";
 const int MAJOR = 1;
 const int MINOR = 0;
 const int REV = 0;
-const int BUILD = 2;
+const int BUILD = 3;
 
 class MatchTrainerAssistant : public bz_Plugin, public bz_CustomSlashCommandHandler
 {
@@ -196,6 +196,12 @@ bool MatchTrainerAssistant::SlashCommand(int playerID, bz_ApiString command, bz_
             else if (params->size() == 1)
             {
                 std::unique_ptr<bz_BasePlayerRecord> target(bz_getPlayerBySlotOrCallsign(params->get(0).c_str()));
+
+                if (target == NULL)
+                {
+                    bz_sendTextMessagef(BZ_SERVER, playerID, "player %s not found", params->get(0).c_str());
+                    return true;
+                }
 
                 lastDeaths[playerID][0] = target->lastKnownState.pos[0];
                 lastDeaths[playerID][1] = target->lastKnownState.pos[1];
