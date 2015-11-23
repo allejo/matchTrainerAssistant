@@ -133,8 +133,6 @@ void MatchTrainerAssistant::Event (bz_EventData *eventData)
         {
             bz_PlayerDieEventData_V1* dieData = (bz_PlayerDieEventData_V1*)eventData;
 
-            bz_sendTextMessagef(BZ_SERVER, BZ_ALLUSERS, "protectedPos: %s", protectedPos[dieData->playerID] ? "t" : "f");
-
             if (!protectedPos[dieData->playerID])
             {
                 lastDeaths[dieData->playerID][0] = dieData->state.pos[0];
