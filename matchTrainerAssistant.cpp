@@ -23,7 +23,7 @@
 #include <sstream>
 
 #include "bzfsAPI.h"
-#include "bztoolkit/bzToolkitApi.h"
+#include "bztoolkit/bzToolkitAPI.h"
 
 // Define plug-in name
 const std::string PLUGIN_NAME = "Match Trainer Assistant";
