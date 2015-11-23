@@ -65,7 +65,7 @@ const char* MatchTrainerAssistant::Name (void)
     return pluginBuild.c_str();
 }
 
-void MatchTrainerAssistant::Init (const char* commandLine)
+void MatchTrainerAssistant::Init (const char* /*commandLine*/)
 {
     // Register our events with Register()
     Register(bz_eGetPlayerSpawnPosEvent);
