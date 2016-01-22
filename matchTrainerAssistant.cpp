@@ -20,6 +20,7 @@
  THE SOFTWARE.
  */
 
+#include <cmath>
 #include <sstream>
 
 #include "bzfsAPI.h"
@@ -31,8 +32,8 @@ const std::string PLUGIN_NAME = "Match Trainer Assistant";
 // Define plug-in version numbering
 const int MAJOR = 1;
 const int MINOR = 0;
-const int REV = 0;
-const int BUILD = 4;
+const int REV = 1;
+const int BUILD = 5;
 
 class MatchTrainerAssistant : public bz_Plugin, public bz_CustomSlashCommandHandler
 {
@@ -178,6 +179,8 @@ bool MatchTrainerAssistant::SlashCommand(int playerID, bz_ApiString command, bz_
 
     if (command == "spawn")
     {
+        int maxXY = bz_getBZDBInt("_worldSize") / 2;
+
         if (params->size() > 0)
         {
             if (params->size() != 1 && params->size() != 4)
@@ -197,12 +200,6 @@ bool MatchTrainerAssistant::SlashCommand(int playerID, bz_ApiString command, bz_
             {
                 std::unique_ptr<bz_BasePlayerRecord> target(bz_getPlayerBySlotOrCallsign(params->get(0).c_str()));
 
-                if (target == NULL)
-                {
-                    bz_sendTextMessagef(BZ_SERVER, playerID, "player %s not found", params->get(0).c_str());
-                    return true;
-                }
-
                 lastDeaths[playerID][0] = target->lastKnownState.pos[0];
                 lastDeaths[playerID][1] = target->lastKnownState.pos[1];
                 lastDeaths[playerID][2] = target->lastKnownState.pos[2];
@@ -210,6 +207,28 @@ bool MatchTrainerAssistant::SlashCommand(int playerID, bz_ApiString command, bz_
             }
             else
             {
+                float posX = std::atof(params->get(0).c_str());
+                float posY = std::atof(params->get(1).c_str());
+                float posZ = std::atof(params->get(2).c_str());
+
+                if (abs(posX) > maxXY || abs(posY) > maxXY)
+                {
+                    bz_sendTextMessagef(BZ_SERVER, playerID, "The following %s value (%.2f) is outside of this world",
+                                        (abs(posX) > maxXY) ? "X" : "Y",
+                                        (abs(posX) > maxXY) ? posX : posY);
+
+                    return true;
+                }
+
+                float maxZ = bz_getWorldMaxHeight();
+
+                if (maxZ > 0 && posZ > maxZ)
+                {
+                    bz_sendTextMessagef(BZ_SERVER, playerID, "The following Z value (%.2f) is outside of this world", posZ);
+
+                    return true;
+                }
+
                 lastDeaths[playerID][0] = std::atof(params->get(0).c_str());
                 lastDeaths[playerID][1] = std::atof(params->get(1).c_str());
                 lastDeaths[playerID][2] = std::atof(params->get(2).c_str());
@@ -217,15 +236,13 @@ bool MatchTrainerAssistant::SlashCommand(int playerID, bz_ApiString command, bz_
             }
         }
 
-        protectedPos[playerID] = true;
-        handleSpawn[playerID] = true;
-
         if (pr->spawned)
         {
             bz_killPlayer(playerID, BZ_SERVER);
         }
 
         bztk_forcePlayerSpawn(playerID);
+        handleSpawn[playerID] = true;
 
         return true;
     }
