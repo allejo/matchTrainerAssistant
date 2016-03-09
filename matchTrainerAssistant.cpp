@@ -200,6 +200,12 @@ bool MatchTrainerAssistant::SlashCommand(int playerID, bz_ApiString command, bz_
             {
                 std::unique_ptr<bz_BasePlayerRecord> target(bz_getPlayerBySlotOrCallsign(params->get(0).c_str()));
 
+                if (target == NULL)
+                {
+                    bz_sendTextMessagef(BZ_SERVER, playerID, "player %s not found", params->get(0).c_str());
+                    return true;
+                }
+
                 lastDeaths[playerID][0] = target->lastKnownState.pos[0];
                 lastDeaths[playerID][1] = target->lastKnownState.pos[1];
                 lastDeaths[playerID][2] = target->lastKnownState.pos[2];
