@@ -38,16 +38,15 @@ int BUILD = 5;
 class MatchTrainerAssistant : public bz_Plugin, public bz_CustomSlashCommandHandler
 {
 public:
-    virtual const char* Name () { return bztk_PluginName(); }
+    virtual const char* Name () { return bztk_pluginName(); }
     virtual void Init (const char* config);
     virtual void Event (bz_EventData *eventData);
     virtual void Cleanup (void);
 
     virtual bool SlashCommand (int playerID, bz_ApiString, bz_ApiString, bz_APIStringList*);
 
-    bool  protectedPos[256];
     bool  handleSpawn[256];
-    float lastDeaths[256][4];
+    float nextSpawnLocation[256][4];
 };
 
 BZ_PLUGIN(MatchTrainerAssistant)
@@ -95,7 +94,7 @@ void MatchTrainerAssistant::Event (bz_EventData *eventData)
 
             for (int i = 0; i < 4; i++)
             {
-                if (isnan(lastDeaths[spawnData->playerID][i]))
+                if (isnan(nextSpawnLocation[spawnData->playerID][i]))
                 {
                     return;
                 }
@@ -103,13 +102,12 @@ void MatchTrainerAssistant::Event (bz_EventData *eventData)
 
             if (handleSpawn[spawnData->playerID])
             {
-                spawnData->handled = handleSpawn[spawnData->playerID];
-                spawnData->pos[0]  = lastDeaths[spawnData->playerID][0];
-                spawnData->pos[1]  = lastDeaths[spawnData->playerID][1];
-                spawnData->pos[2]  = lastDeaths[spawnData->playerID][2];
-                spawnData->rot     = lastDeaths[spawnData->playerID][3];
+                spawnData->handled = true;
+                spawnData->pos[0]  = nextSpawnLocation[spawnData->playerID][0];
+                spawnData->pos[1]  = nextSpawnLocation[spawnData->playerID][1];
+                spawnData->pos[2]  = nextSpawnLocation[spawnData->playerID][2];
+                spawnData->rot     = nextSpawnLocation[spawnData->playerID][3];
 
-                protectedPos[spawnData->playerID] = false;
                 handleSpawn[spawnData->playerID] = false;
             }
         }
@@ -119,15 +117,15 @@ void MatchTrainerAssistant::Event (bz_EventData *eventData)
         {
             bz_PlayerDieEventData_V1* dieData = (bz_PlayerDieEventData_V1*)eventData;
 
-            if (!protectedPos[dieData->playerID])
+            // If they aren't killed by the server, save their last position. This is done because whenever someone does a /spawn, they are killed in order to
+            // be respawned elsewhere
+            if (dieData->killerID != ServerPlayer)
             {
-                lastDeaths[dieData->playerID][0] = dieData->state.pos[0];
-                lastDeaths[dieData->playerID][1] = dieData->state.pos[1];
-                lastDeaths[dieData->playerID][2] = dieData->state.pos[2];
-                lastDeaths[dieData->playerID][3] = dieData->state.rotation;
+                nextSpawnLocation[dieData->playerID][0] = dieData->state.pos[0];
+                nextSpawnLocation[dieData->playerID][1] = dieData->state.pos[1];
+                nextSpawnLocation[dieData->playerID][2] = dieData->state.pos[2];
+                nextSpawnLocation[dieData->playerID][3] = dieData->state.rotation;
             }
-
-            protectedPos[dieData->playerID] = false;
         }
         break;
 
@@ -136,13 +134,12 @@ void MatchTrainerAssistant::Event (bz_EventData *eventData)
         {
             bz_PlayerJoinPartEventData_V1* joinPartData = (bz_PlayerJoinPartEventData_V1*)eventData;
 
-            protectedPos[joinPartData->playerID] = false;
             handleSpawn[joinPartData->playerID] = false;
 
-            lastDeaths[joinPartData->playerID][0] = NAN;
-            lastDeaths[joinPartData->playerID][1] = NAN;
-            lastDeaths[joinPartData->playerID][2] = NAN;
-            lastDeaths[joinPartData->playerID][3] = NAN;
+            nextSpawnLocation[joinPartData->playerID][0] = NAN;
+            nextSpawnLocation[joinPartData->playerID][1] = NAN;
+            nextSpawnLocation[joinPartData->playerID][2] = NAN;
+            nextSpawnLocation[joinPartData->playerID][3] = NAN;
         }
         break;
 
@@ -191,22 +188,23 @@ bool MatchTrainerAssistant::SlashCommand(int playerID, bz_ApiString command, bz_
                     return true;
                 }
 
-                lastDeaths[playerID][0] = target->lastKnownState.pos[0];
-                lastDeaths[playerID][1] = target->lastKnownState.pos[1];
-                lastDeaths[playerID][2] = target->lastKnownState.pos[2];
-                lastDeaths[playerID][3] = target->lastKnownState.rotation;
+                nextSpawnLocation[playerID][0] = target->lastKnownState.pos[0];
+                nextSpawnLocation[playerID][1] = target->lastKnownState.pos[1];
+                nextSpawnLocation[playerID][2] = target->lastKnownState.pos[2];
+                nextSpawnLocation[playerID][3] = target->lastKnownState.rotation;
             }
             else
             {
                 float posX = std::atof(params->get(0).c_str());
                 float posY = std::atof(params->get(1).c_str());
                 float posZ = std::atof(params->get(2).c_str());
+                float rot  = std::atof(params->get(3).c_str());
 
-                if (abs(posX) > maxXY || abs(posY) > maxXY)
+                if (std::abs(posX) > maxXY || std::abs(posY) > maxXY)
                 {
                     bz_sendTextMessagef(BZ_SERVER, playerID, "The following %s value (%.2f) is outside of this world",
-                                        (abs(posX) > maxXY) ? "X" : "Y",
-                                        (abs(posX) > maxXY) ? posX : posY);
+                                        (std::abs(posX) > maxXY) ? "X" : "Y",
+                                        (std::abs(posX) > maxXY) ? posX : posY);
 
                     return true;
                 }
@@ -220,20 +218,20 @@ bool MatchTrainerAssistant::SlashCommand(int playerID, bz_ApiString command, bz_
                     return true;
                 }
 
-                lastDeaths[playerID][0] = std::atof(params->get(0).c_str());
-                lastDeaths[playerID][1] = std::atof(params->get(1).c_str());
-                lastDeaths[playerID][2] = std::atof(params->get(2).c_str());
-                lastDeaths[playerID][3] = std::atof(params->get(3).c_str());
+                nextSpawnLocation[playerID][0] = posX;
+                nextSpawnLocation[playerID][1] = posY;
+                nextSpawnLocation[playerID][2] = posZ;
+                nextSpawnLocation[playerID][3] = rot;
             }
         }
 
         if (pr->spawned)
         {
-            bz_killPlayer(playerID, BZ_SERVER);
+            bz_killPlayer(playerID, ServerPlayer);
         }
 
-        bztk_forcePlayerSpawn(playerID);
         handleSpawn[playerID] = true;
+        bztk_forcePlayerSpawn(playerID);
 
         return true;
     }
@@ -250,8 +248,7 @@ bool MatchTrainerAssistant::SlashCommand(int playerID, bz_ApiString command, bz_
     }
     else if (command == "die")
     {
-        protectedPos[playerID] = true;
-        bz_killPlayer(playerID, BZ_SERVER);
+        bz_killPlayer(playerID, false, playerID);
 
         return true;
     }
