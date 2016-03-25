@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 Vladimir "allejo" Jimenez
+ Copyright (C) 2016 Vladimir "allejo" Jimenez
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -27,18 +27,18 @@
 #include "bztoolkit/bzToolkitAPI.h"
 
 // Define plug-in name
-const std::string PLUGIN_NAME = "Match Trainer Assistant";
+std::string PLUGIN_NAME = "Match Trainer Assistant";
 
 // Define plug-in version numbering
-const int MAJOR = 1;
-const int MINOR = 0;
-const int REV = 1;
-const int BUILD = 5;
+int MAJOR = 1;
+int MINOR = 0;
+int REV = 1;
+int BUILD = 5;
 
 class MatchTrainerAssistant : public bz_Plugin, public bz_CustomSlashCommandHandler
 {
 public:
-    virtual const char* Name ();
+    virtual const char* Name () { return bztk_PluginName(); }
     virtual void Init (const char* config);
     virtual void Event (bz_EventData *eventData);
     virtual void Cleanup (void);
@@ -51,21 +51,6 @@ public:
 };
 
 BZ_PLUGIN(MatchTrainerAssistant)
-
-const char* MatchTrainerAssistant::Name (void)
-{
-    static std::string pluginBuild = "";
-
-    if (!pluginBuild.size())
-    {
-        std::ostringstream pluginBuildStream;
-
-        pluginBuildStream << PLUGIN_NAME << " " << MAJOR << "." << MINOR << "." << REV << " (" << BUILD << ")";
-        pluginBuild = pluginBuildStream.str();
-    }
-
-    return pluginBuild.c_str();
-}
 
 void MatchTrainerAssistant::Init (const char* /*commandLine*/)
 {
@@ -228,7 +213,7 @@ bool MatchTrainerAssistant::SlashCommand(int playerID, bz_ApiString command, bz_
 
                 float maxZ = bz_getWorldMaxHeight();
 
-                if (maxZ > 0 && posZ > maxZ)
+                if (posZ < 0 || (maxZ > 0 && posZ > maxZ))
                 {
                     bz_sendTextMessagef(BZ_SERVER, playerID, "The following Z value (%.2f) is outside of this world", posZ);
 
