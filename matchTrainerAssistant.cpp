@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2016 Vladimir "allejo" Jimenez
+ Copyright (C) 2016-2017 Vladimir "allejo" Jimenez
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -18,40 +18,60 @@
  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
- */
+*/
 
 #include <cmath>
-#include <sstream>
 
 #include "bzfsAPI.h"
 #include "bztoolkit/bzToolkitAPI.h"
 
 // Define plug-in name
-std::string PLUGIN_NAME = "Match Trainer Assistant";
+const std::string PLUGIN_NAME = "Match Trainer Assistant";
 
 // Define plug-in version numbering
-int MAJOR = 1;
-int MINOR = 0;
-int REV = 1;
-int BUILD = 5;
+const int MAJOR = 1;
+const int MINOR = 0;
+const int REV = 1;
+const int BUILD = 5;
 
 class MatchTrainerAssistant : public bz_Plugin, public bz_CustomSlashCommandHandler
 {
 public:
-    virtual const char* Name () { return bztk_pluginName(); }
+    virtual const char* Name ();
     virtual void Init (const char* config);
     virtual void Event (bz_EventData *eventData);
     virtual void Cleanup (void);
-
     virtual bool SlashCommand (int playerID, bz_ApiString, bz_ApiString, bz_APIStringList*);
+
+    virtual void reloadAliases (void);
+
+    struct SpawnAlias
+    {
+        std::string name;
+        std::string desc;
+        float position[3];
+        float rotation;
+    };
 
     bool  handleSpawn[256];
     float nextSpawnLocation[256][4];
+    std::string aliasesFile;
+    std::map<std::string, SpawnAlias> aliases;
 };
 
 BZ_PLUGIN(MatchTrainerAssistant)
 
-void MatchTrainerAssistant::Init (const char* /*commandLine*/)
+const char* MatchTrainerAssistant::Name ()
+{
+    static std::string pluginName;
+
+    if (pluginName.empty())
+        pluginName = bztk_pluginName(PLUGIN_NAME, MAJOR, MINOR, REV, BUILD);
+
+    return pluginName.c_str();
+}
+
+void MatchTrainerAssistant::Init (const char* commandLine)
 {
     // Register our events with Register()
     Register(bz_eAllowCTFCaptureEvent);
@@ -61,9 +81,12 @@ void MatchTrainerAssistant::Init (const char* /*commandLine*/)
     Register(bz_ePlayerPartEvent);
 
     // Register our custom slash commands
+    bz_registerCustomSlashCommand("reload", this);
     bz_registerCustomSlashCommand("spawn", this);
     bz_registerCustomSlashCommand("flag", this);
     bz_registerCustomSlashCommand("die", this);
+
+    aliasesFile = commandLine;
 }
 
 void MatchTrainerAssistant::Cleanup (void)
@@ -71,6 +94,7 @@ void MatchTrainerAssistant::Cleanup (void)
     Flush(); // Clean up all the events
 
     // Clean up our custom slash commands
+    bz_removeCustomSlashCommand("reload");
     bz_removeCustomSlashCommand("spawn");
     bz_removeCustomSlashCommand("flag");
     bz_removeCustomSlashCommand("die");
@@ -159,7 +183,21 @@ bool MatchTrainerAssistant::SlashCommand(int playerID, bz_ApiString command, bz_
         return true;
     }
 
-    if (command == "spawn")
+    if (command == "reload" && params->get(0) == "aliases")
+    {
+        if (bz_hasPerm(playerID, "setAll"))
+        {
+            reloadAliases();
+            bz_sendTextMessage(BZ_SERVER, playerID, "spawn aliases reloaded");
+        }
+        else
+        {
+            bz_sendTextMessage(BZ_SERVER, playerID, "permission denied");
+        }
+
+        return true;
+    }
+    else if (command == "spawn")
     {
         int maxXY = bz_getBZDBInt("_worldSize") / 2;
 
@@ -175,23 +213,42 @@ bool MatchTrainerAssistant::SlashCommand(int playerID, bz_ApiString command, bz_
                 bz_sendTextMessage(BZ_SERVER, playerID, "   - Respawn at the location of another player's location or location of death");
                 bz_sendTextMessage(BZ_SERVER, playerID, "/spawn <x> <y> <z> <rotation>");
                 bz_sendTextMessage(BZ_SERVER, playerID, "   - Respawn at specified location; don't spawn inside a building!");
+                bz_sendTextMessage(BZ_SERVER, playerID, "");
+                bz_sendTextMessage(BZ_SERVER, playerID, "/spawn <alias>");
+
+                for (auto alias : aliases)
+                {
+                    bz_sendTextMessagef(BZ_SERVER, playerID, "     %s - %s", alias.first.c_str(), alias.second.desc.c_str());
+                }
 
                 return true;
             }
             else if (params->size() == 1)
             {
-                std::unique_ptr<bz_BasePlayerRecord> target(bz_getPlayerBySlotOrCallsign(params->get(0).c_str()));
+                std::string targetStr = params->get(0);
 
-                if (target == NULL)
+                if (aliases.find(targetStr) != aliases.end())
                 {
-                    bz_sendTextMessagef(BZ_SERVER, playerID, "player %s not found", params->get(0).c_str());
-                    return true;
+                    nextSpawnLocation[playerID][0] = aliases[targetStr].position[0];
+                    nextSpawnLocation[playerID][1] = aliases[targetStr].position[1];
+                    nextSpawnLocation[playerID][2] = aliases[targetStr].position[1];
+                    nextSpawnLocation[playerID][3] = aliases[targetStr].rotation;
                 }
+                else
+                {
+                    std::unique_ptr<bz_BasePlayerRecord> target(bz_getPlayerBySlotOrCallsign(targetStr.c_str()));
 
-                nextSpawnLocation[playerID][0] = target->lastKnownState.pos[0];
-                nextSpawnLocation[playerID][1] = target->lastKnownState.pos[1];
-                nextSpawnLocation[playerID][2] = target->lastKnownState.pos[2];
-                nextSpawnLocation[playerID][3] = target->lastKnownState.rotation;
+                    if (!target)
+                    {
+                        bz_sendTextMessagef(BZ_SERVER, playerID, "player %s not found", targetStr.c_str());
+                        return true;
+                    }
+
+                    nextSpawnLocation[playerID][0] = target->lastKnownState.pos[0];
+                    nextSpawnLocation[playerID][1] = target->lastKnownState.pos[1];
+                    nextSpawnLocation[playerID][2] = target->lastKnownState.pos[2];
+                    nextSpawnLocation[playerID][3] = target->lastKnownState.rotation;
+                }
             }
             else
             {
@@ -254,4 +311,33 @@ bool MatchTrainerAssistant::SlashCommand(int playerID, bz_ApiString command, bz_
     }
 
     return false;
+}
+
+void MatchTrainerAssistant::reloadAliases()
+{
+    if (!aliasesFile.empty())
+    {
+        aliases.clear();
+
+        std::vector<std::string> fileContents;
+        bztk_fileToVector(aliasesFile.c_str(), fileContents, true, false);
+
+        for (auto line : fileContents)
+        {
+            bz_APIStringList nodes;
+            nodes.tokenize(line.c_str(), ",");
+
+            std::string alias = bz_tolower(nodes.get(0).c_str());
+
+            SpawnAlias a;
+            a.name = alias;
+            a.desc = nodes.get(1).c_str();
+            a.position[0] = std::stof(nodes.get(2).c_str());
+            a.position[1] = std::stof(nodes.get(3).c_str());
+            a.position[2] = std::stof(nodes.get(4).c_str());
+            a.rotation = std::stof(nodes.get(5).c_str());
+
+            aliases[alias] = a;
+        }
+    }
 }
